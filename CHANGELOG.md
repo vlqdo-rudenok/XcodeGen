@@ -2,6 +2,98 @@
 
 ## Next Version
 
+### Added
+- Added `buildArchitectures` to scheme build options and target schemes, to control Xcode's "Override Architectures" scheme setting #1642 @arhxam
+- Added FAQ documentation on how to add an Xcode capability, such as In-App Purchase #1644 @Hokila
+
+### Changed
+- Generated schemes now default to `buildArchitectures: matchRunDestination` ("Match Run Destination"), matching Xcode's default for new schemes. Previously schemes used each target's architecture settings. Set `buildArchitectures: useTargetSettings` to keep the previous behaviour #1642 @yonaskolb
+
+### Fixed
+- Fix `syncedFolder` source paths being relative to the spec directory instead of the project directory when they differ, which caused Xcode to treat the synced folder as empty #1636 @Ckitakishi
+- Fix nested target attributes (e.g. `attributes.SystemCapabilities`) being serialized as a stringified Swift `Dictionary` description instead of a proper nested plist dictionary, which also caused non-deterministic key ordering in generated `project.pbxproj` files across runs #1639 @imadaan @sergeyospanov
+
+### Internal
+- Use a dedicated local package in the SPM fixture so generated fixtures don't depend on the checkout directory name, such as when running tests from a git worktree @yonaskolb
+
+## 2.46.0
+
+### Added
+- Added support for Swift package `traits` on remote and local package references, so generated projects preserve the configured trait selections #1629 @philprime
+
+### Changed
+- Targets in the generated project now follow the declaration order from the source spec (Xcode sidebar, `xcodebuild -list` output). Previously they were always sorted alphabetically. Applies to both YAML and JSON specs. Declaration order is now also preserved for targets whose `platform`/`name` come from a target template and for targets whose key is a `${VARIABLE}`. #1619 @mirkokg
+- Static frameworks (`type: framework.static`, or `type: framework` with `MACH_O_TYPE: staticlib`) are now embedded by default in dependent applications and test targets, the same as dynamic frameworks. Xcode 15 and later strips the static binary from the embedded copy while keeping the framework's resources. Set `embed: false` on the dependency to keep the previous behaviour #1628 @daltonclaybrook
+
+### Internal
+- Update to XcodeProj 9.14.0 #1629 @philprime
+
+## 2.45.4
+
+### Fixed
+- Fix makePathRelative using wrong base path when projectDirectory differs #1608 @yonaskolb
+- Fix synced folder configFiles creating duplicate groups #1607 @AlexNsbmr
+- Fix synced folder root group duplication for paths referenced by multiple targets #1607 @AlexNsbmr
+- Fix synced folder directory-level membershipExceptions not working #1607 @AlexNsbmr
+
+## 2.45.3
+
+### Fixed
+- Fix folder source PBXFileReference path regression with createIntermediateGroups #1605 @yonaskolb
+- Fix synced folders: includes silently ignored + no deduplication across targets #1604 @4brunu
+
+## 2.45.2
+
+### Fixed
+- Validate empty source paths to prevent project root inclusion #1601 @yonaskolb
+- Fix missing productRefGroup in generated projects #1591 @ruslic19
+
+## 2.45.1
+
+### Added
+- Added built in `.icon` folder support for IconComposer #1600 @yonaskolb
+
+## 2.45.0
+
+### Added
+- Added ability to specify project format version via `projectFormat` option #1566 @anivaros
+- Added `explicitFolders` property to `TargetSource` that is passed through to `PBXFileSystemSynchronizedRootGroup`, to turn entire subfolders into Resources #1596 @macguru
+- Allow synced folders to be sorted using `groupOrdering` #1596 @macguru
+- Added `excludes` support for `syncedFolder` sources with glob pattern matching #1587 @mirkokg
+
+### Fixed
+- Fixed synced folders ignoring `createIntermediateGroups=YES` and always being created at the root level #1596 @macguru
+- Fix membership exceptions not working for nested synced folders with intermediate groups enabled #1596 @macguru
+- Fix `supportedDestinations` presets being injected when `settingPresets` is `none` #1599 @macguru
+- Automatically exclude `Info.plist` from synced folder membership when it's within the synced folder #1587 @mirkokg
+- Add empty copy resources build phase for synced folders so resources are copied correctly #1587 @mirkokg
+
+### Internal
+- Update to XcodeProj 9.10.1 #1597 @yonaskolb
+- Fix CI: add explicit xcodebuild destinations and update Xcode matrix #1594 @yonaskolb
+- Update ArtifactBundleGen to 0.0.8 #1570 @georgenavarro
+
+## 2.44.1
+
+### Fixed
+- Set the correct object version of 77 for Xcode 16 projects @jakobfelsatdm #1563
+- Support major.minor SPM package versions which would otherwise fail to decode to a string in yaml specs #1546 @RomanPodymov
+- Fix regression for `parallelizable` in scheme. It now resolves to "Enabled" and not "Swift Testing Only" #1565 @CraigSiemens
+
+## 2.44.0
+
+### Added
+- Basic support for Xcode 16's synchronized folders #1541 @yonaskolb
+  - `TargetSource.type` can now be `syncedFolder`
+  - `Options.defaultSourceDirectoryType` can be set to `syncedFolder` for the default type in all sources in the project (defaults to `group`)
+  - Benefits include faster generation and no cache invalidation or need to regenerate when files are added or removed from these folders
+  - Note that not all TargetSource options like excludes are supported, just a simple path. Please test and see what is missing in your projects
+- Added sanitizer options to run and test actions in Scheme #1550 @hi-kumar
+
+### Fixed
+- Added validation to ensure that all values in `settings.configs` are mappings. Previously, passing non-mapping values did not raise an error, making it difficult to detect misconfigurations. Now, `SpecParsingError.invalidConfigsMappingFormat` is thrown if misused. #1547 @Ryu0118
+- Use `USER` instead of `LOGNAME` for XCUserData #1559 @KostyaSha
+
 ## 2.43.0
 
 ### Added

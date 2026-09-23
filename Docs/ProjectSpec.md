@@ -133,6 +133,13 @@ Note that target names can also be changed by adding a `name` property to a targ
 - [ ] **indentWidth**: **Int** - If this is specified, the Xcode project will override the user's setting for indent width in number of spaces.
 - [ ] **tabWidth**: **Int** - If this is specified, the Xcode project will override the user's setting for indent width in number of spaces.
 - [ ] **xcodeVersion**: **String** - The version of Xcode. This defaults to the latest version periodically. You can specify it in the format `0910` or `9.1`
+- [ ] **projectFormat**: **String** - The version of Xcode project. By default this is set to `xcode16_0`
+  - `xcode16_3`: Xcode 16.3
+  - `xcode16_0`: Xcode 16.0
+  - `xcode15_3`: Xcode 15.3
+  - `xcode15_0`: Xcode 15.0
+  - `xcode14_0`: Xcode 14.0
+
 - [ ] **deploymentTarget**: **[[Platform](#platform): String]** - A project wide deployment target can be specified for each platform otherwise the default SDK version in Xcode will be used. This will be overridden by any custom build settings that set the deployment target eg `IPHONEOS_DEPLOYMENT_TARGET`. Target specific deployment targets can also be set with [Target](#target).deploymentTarget.
 - [ ] **disabledValidations**: **[String]** - A list of validations that can be disabled if they're too strict for your use case. By default this is set to an empty array. Currently these are the available options:
   - `missingConfigs`: Disable errors for configurations in yaml files that don't exist in the project itself. This can be useful if you include the same yaml file in different projects
@@ -153,6 +160,10 @@ Note that target names can also be changed by adding a `name` property to a targ
 - [ ] **postGenCommand**: **String** - A bash command to run after the project has been generated. If the project isn't generated due to no changes when using the cache then this won't run. This is useful for running things like `pod install` only if the project is actually regenerated.
 - [ ] **useBaseInternationalization**: **Bool** If this is `false` and your project does not include resources located in a **Base.lproj** directory then `Base` will not be included in the projects 'known regions'. The default value is `true`. 
 - [ ] **schemePathPrefix**: **String** - A path prefix for relative paths in schemes, such as StoreKitConfiguration. The default is `"../../"`, which is suitable for non-workspace projects. For use in workspaces, use `"../"`.
+- [ ] **defaultSourceDirectoryType**: **String** - When a [Target source](#target-source) doesn't specify a type and is a directory, this is the type that will be used. If nothing is specified for either then `group` will be used.
+  - `group` (default)
+  - `folder`
+  - `syncedFolder`: Can be used starting from **projectFormat** `xcode16_0`
 
 ```yaml
 options:
@@ -516,6 +527,7 @@ A source can be provided via a string (the path) or an object of the form:
 - [ ] **compilerFlags**: **[String]** or **String** - A list of compilerFlags to add to files under this specific path provided as a list or a space delimited string. Defaults to empty.
 - [ ] **excludes**: **[String]** - A list of [global patterns](https://en.wikipedia.org/wiki/Glob_(programming)) representing the files to exclude. These rules are relative to `path` and _not the directory where `project.yml` resides_. XcodeGen uses Bash 4's Glob behaviors where globstar (**) is enabled.
 - [ ] **includes**: **[String]** - A list of global patterns in the same format as `excludes` representing the files to include. These rules are relative to `path` and _not the directory where `project.yml` resides_. If **excludes** is present and file conflicts with **includes**, **excludes** will override the **includes** behavior.
+- [ ] **explicitFolders**: **[String]** - Only valid for `syncedFolder` type. A list of global patterns in the same format as `excludes` to child folders that Xcode should treat as folder references.
 - [ ] **destinationFilters**: **[[Supported Destinations](#supported-destinations)]** - List of supported platform destinations the files should filter to. Defaults to all supported destinations.
 - [ ] **inferDestinationFiltersByPath**: **Bool** - This is a convenience filter that helps you to filter the files if their paths match these patterns `**/<supportedDestination>/*` or `*_<supportedDestination>.swift`. Note, if you use `destinationFilters` this flag will be ignored.
 - [ ] **createIntermediateGroups**: **Bool** - This overrides the value in [Options](#options).
@@ -542,6 +554,7 @@ A source can be provided via a string (the path) or an object of the form:
 	- `file`: a file reference with a parent group will be created (Default for files or directories with extensions)
 	- `group`: a group with all it's containing files. (Default for directories without extensions)
 	- `folder`: a folder reference.
+	- `syncedFolder`: Xcode 16's synchronized folders, also knows as buildable folders
 - [ ] **headerVisibility**: **String** - The visibility of any headers. This defaults to `public`, but can be either:
 	- `public`
 	- `private`
@@ -880,6 +893,7 @@ This is a convenience used to automatically generate schemes for a target based 
 - [ ] **stopOnEveryMainThreadCheckerIssue**: **Bool** - a boolean that indicates if this scheme should stop at every Main Thread Checker issue. This defaults to false
 - [ ] **disableThreadPerformanceChecker**: **Bool** - a boolean that indicates if this scheme should disable the Thread Performance Checker. This defaults to false
 - [ ] **buildImplicitDependencies**: **Bool** - Flag to determine if Xcode should build implicit dependencies of this scheme. By default this is `true` if not set.
+- [ ] **buildArchitectures**: **String** - Overrides the architectures built for all targets in the scheme. Supported values are `matchRunDestination`, `universal`, and `useTargetSettings`. By default this is `matchRunDestination` if not set. See [Build](#build) for details.
 - [ ] **language**: **String** - a String that indicates the language used for running and testing. This defaults to nil
 - [ ] **region**: **String** - a String that indicates the region used for running and testing. This defaults to nil
 - [ ] **commandLineArguments**: **[String:Bool]** - a dictionary from the argument name (`String`) to if it is enabled (`Bool`). These arguments will be added to the Test, Profile and Run scheme actions
@@ -1006,6 +1020,10 @@ Schemes allows for more control than the convenience [Target Scheme](#target-sch
 - [ ] **runPostActionsOnFailure**: **Bool** - Flag to determine if Xcode should run post scripts despite failure build. By default this is `false` if not set.
 - `true`: Run post scripts even if build is failed
 - `false`: Only run post scripts if build success
+- [ ] **buildArchitectures**: **String** - Overrides the architectures built for all targets in the scheme. This is the "Override Architectures" build option in Xcode's scheme editor. By default this is `matchRunDestination` if not set, which matches Xcode's default for new schemes.
+  - `matchRunDestination`: Only build the architecture of the run destination ("Match Run Destination")
+  - `universal`: Build all standard architectures ("Universal")
+  - `useTargetSettings`: Use the architecture build settings of each target, such as `ONLY_ACTIVE_ARCH` ("Use Target Settings")
 
 
 ```yaml
@@ -1014,6 +1032,7 @@ targets:
   FooLib/FooTarget: [test, run]
 parallelizeBuild: true
 buildImplicitDependencies: true
+buildArchitectures: matchRunDestination
 ```
 
 ### Common Build Action options
@@ -1054,6 +1073,7 @@ A multiline script can be written using the various YAML multiline methods, for 
 ### Run Action
 - [ ] **executable**: **String** - the name of the target to launch as an executable. Defaults to the first runnable build target in the scheme, or the first build target if a runnable build target is not found
 - [ ] **customLLDBInit**: **String** - the absolute path to the custom `.lldbinit` file
+- [ ] **customWorkingDirectory**: **String** - a path to use as the working directory when launching the executable.
 
 ### Test Action
 
@@ -1242,21 +1262,29 @@ Swift packages are defined at a project level, and then linked to individual tar
   - `branch: master`
   - `revision: xxxxxx`
 - [ ] **github** : **String**- this is an optional helper you can use for github repos. Instead of specifying the full url in `url` you can just specify the github org and repo
+- [ ] **traits**: **[String]** - Optional Swift package traits to enable for this package reference. Trait names are written to the Xcode project in the specified order.
   
 ### Local Package
 
 - [x] **path**: **String** - the path to the package in local. The path must be directory with a `Package.swift`.
 - [ ] **group** : **String**- Optional path that specifies the location where the package will live in your xcode project. Use `""` to specify the project root.
 - [ ] **excludeFromProject** : **String**- Optional flag to exclude the package from the generated project (useful if the package is already added via xcworkspace and the project is not intended for standalone use), defaults to `false`
+- [ ] **traits**: **[String]** - Optional Swift package traits to enable for this package reference. Use the top-level `packages` mapping because the legacy `localPackages` syntax cannot specify traits.
 
 ```yml
 packages:
   Yams:
     url: https://github.com/jpsim/Yams
     from: 2.0.0
+    traits:
+      - StrictConcurrency
   Ink:
     github: JohnSundell/Ink
     from: 0.5.0
+  Sentry:
+    path: ../..
+    traits:
+      - NoUIFramework
   RxClient:
     path: ../RxClient
   AppFeature:

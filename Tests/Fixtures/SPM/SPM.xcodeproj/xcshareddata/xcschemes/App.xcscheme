@@ -5,6 +5,7 @@
    <BuildAction
       parallelizeBuildables = "YES"
       buildImplicitDependencies = "YES"
+      buildArchitectures = "Automatic"
       runPostActionsOnFailure = "NO">
       <BuildActionEntries>
          <BuildActionEntry
@@ -40,17 +41,19 @@
       </MacroExpansion>
       <Testables>
          <TestableReference
-            skipped = "NO">
+            skipped = "NO"
+            parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "XcodeGenKitTests"
-               BuildableName = "XcodeGenKitTests"
-               BlueprintName = "XcodeGenKitTests"
-               ReferencedContainer = "container:../../..">
+               BlueprintIdentifier = "LocalPackageTests"
+               BuildableName = "LocalPackageTests"
+               BlueprintName = "LocalPackageTests"
+               ReferencedContainer = "container:../LocalPackage">
             </BuildableReference>
          </TestableReference>
          <TestableReference
-            skipped = "NO">
+            skipped = "NO"
+            parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "339863E54E2D955C00B56802"

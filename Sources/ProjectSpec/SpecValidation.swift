@@ -57,7 +57,7 @@ extension Project {
         }
 
         for (name, package) in packages {
-            if case let .local(path, _, _) = package, !(basePath + Path(path).normalize()).exists {
+            if case let .local(path, _, _, _) = package, !(basePath + Path(path).normalize()).exists {
                 errors.append(.invalidLocalPackage(name))
             }
         }
@@ -178,6 +178,10 @@ extension Project {
             }
 
             for source in target.sources {
+                if source.path.isEmpty {
+                    errors.append(.emptySourcePath(target: target.name))
+                    continue
+                }
                 let sourcePath = basePath + source.path
                 if !source.optional && !sourcePath.exists {
                     errors.append(.invalidTargetSource(target: target.name, source: sourcePath.string))

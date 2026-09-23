@@ -10,3 +10,5 @@ xcodegen.zip
 xcodegen.artifactbundle.zip
 .vscode/launch.json
 DerivedData
+.context
+.claude/worktrees

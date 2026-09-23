@@ -174,7 +174,7 @@ public class SchemeGenerator {
             switch target.location {
             case .package(let packageName):
                 guard let package = self.project.getPackage(packageName),
-                      case let .local(path, _, _) = package else {
+                      case let .local(path, _, _, _) = package else {
                     throw SchemeGenerationError.missingPackage(packageName)
                 }
                 return XCScheme.BuildableReference(
@@ -240,7 +240,8 @@ public class SchemeGenerator {
             postActions: scheme.build.postActions.map(getExecutionAction),
             parallelizeBuild: scheme.build.parallelizeBuild,
             buildImplicitDependencies: scheme.build.buildImplicitDependencies,
-            runPostActionsOnFailure: scheme.build.runPostActionsOnFailure
+            runPostActionsOnFailure: scheme.build.runPostActionsOnFailure,
+            buildArchitectures: scheme.build.buildArchitectures
         )
 
         let testables: [XCScheme.TestableReference] = zip(testTargets, testBuildTargetEntries).map { testTarget, testBuildEntries in
@@ -261,7 +262,7 @@ public class SchemeGenerator {
             
             return XCScheme.TestableReference(
                 skipped: testTarget.skipped,
-                parallelizable: testTarget.parallelizable,
+                parallelization: testTarget.parallelizable ? .all : .none,
                 randomExecutionOrdering: testTarget.randomExecutionOrder,
                 buildableReference: testBuildEntries.buildableReference,
                 locationScenarioReference: locationScenarioReference,
@@ -312,6 +313,10 @@ public class SchemeGenerator {
             codeCoverageEnabled: scheme.test?.gatherCoverageData ?? Scheme.Test.gatherCoverageDataDefault,
             codeCoverageTargets: coverageBuildableTargets,
             onlyGenerateCoverageForSpecifiedTargets: !coverageBuildableTargets.isEmpty,
+            enableAddressSanitizer: scheme.test?.enableAddressSanitizer ?? Scheme.Test.enableAddressSanitizerDefault,
+            enableASanStackUseAfterReturn: scheme.test?.enableASanStackUseAfterReturn ?? Scheme.Test.enableASanStackUseAfterReturnDefault,
+            enableThreadSanitizer: scheme.test?.enableThreadSanitizer ?? Scheme.Test.enableThreadSanitizerDefault,
+            enableUBSanitizer: scheme.test?.enableUBSanitizer ?? Scheme.Test.enableUBSanitizerDefault,
             disableMainThreadChecker: scheme.test?.disableMainThreadChecker ?? Scheme.Test.disableMainThreadCheckerDefault,
             commandlineArguments: testCommandLineArgs,
             environmentVariables: testVariables,
@@ -356,10 +361,16 @@ public class SchemeGenerator {
             selectedDebuggerIdentifier: selectedDebuggerIdentifier(for: schemeTarget, run: scheme.run),
             selectedLauncherIdentifier: selectedLauncherIdentifier(for: schemeTarget, run: scheme.run),
             askForAppToLaunch: scheme.run?.askForAppToLaunch,
+            customWorkingDirectory: scheme.run?.customWorkingDirectory,
+            useCustomWorkingDirectory: scheme.run?.customWorkingDirectory != nil,
             allowLocationSimulation: allowLocationSimulation,
             locationScenarioReference: locationScenarioReference,
             enableGPUFrameCaptureMode: scheme.run?.enableGPUFrameCaptureMode ?? XCScheme.LaunchAction.defaultGPUFrameCaptureMode,
             disableGPUValidationMode: !(scheme.run?.enableGPUValidationMode ?? Scheme.Run.enableGPUValidationModeDefault),
+            enableAddressSanitizer: scheme.run?.enableAddressSanitizer ?? Scheme.Run.enableAddressSanitizerDefault,
+            enableASanStackUseAfterReturn: scheme.run?.enableASanStackUseAfterReturn ?? Scheme.Run.enableASanStackUseAfterReturnDefault,
+            enableThreadSanitizer: scheme.run?.enableThreadSanitizer ?? Scheme.Run.enableThreadSanitizerDefault,
+            enableUBSanitizer: scheme.run?.enableUBSanitizer ?? Scheme.Run.enableUBSanitizerDefault,
             disableMainThreadChecker: scheme.run?.disableMainThreadChecker ?? Scheme.Run.disableMainThreadCheckerDefault,
             disablePerformanceAntipatternChecker: scheme.run?.disableThreadPerformanceChecker ?? Scheme.Run.disableThreadPerformanceCheckerDefault,
             stopOnEveryMainThreadCheckerIssue: scheme.run?.stopOnEveryMainThreadCheckerIssue ?? Scheme.Run.stopOnEveryMainThreadCheckerIssueDefault,
@@ -479,7 +490,8 @@ extension Scheme {
                 targets: Scheme.buildTargets(for: target, project: project),
                 buildImplicitDependencies: targetScheme.buildImplicitDependencies,
                 preActions: targetScheme.preActions,
-                postActions: targetScheme.postActions
+                postActions: targetScheme.postActions,
+                buildArchitectures: targetScheme.buildArchitectures
             ),
             run: .init(
                 config: debugConfig,

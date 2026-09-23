@@ -320,6 +320,17 @@ class ProjectSpecTests: XCTestCase {
                 try expectValidationError(project, .invalidTargetSchemeConfigVariant(target: "target1", configVariant: "invalidVariant", configType: .debug))
             }
 
+            $0.it("fails with empty source path") {
+                var project = baseProject
+                project.targets = [Target(
+                    name: "target1",
+                    type: .application,
+                    platform: .iOS,
+                    sources: ["", "validSource"]
+                )]
+                try expectValidationError(project, .emptySourcePath(target: "target1"))
+            }
+
             $0.it("fails with invalid aggregate target") {
                 var project = baseProject
                 project.aggregateTargets = [AggregateTarget(
@@ -442,7 +453,7 @@ class ProjectSpecTests: XCTestCase {
             $0.it("validates config settings format") {
                 var project = baseProject
                 project.configs = Config.defaultConfigs
-                project.settings.buildSettings = ["Debug": ["SETTING": "VALUE"], "Release": ["SETTING": "VALUE"]]
+                project.settings.buildSettings = ["Debug": "VALUE", "Release": "VALUE"]
 
                 try expectValidationError(project, .invalidPerConfigSettings)
             }
@@ -768,10 +779,18 @@ class ProjectSpecTests: XCTestCase {
                                                                                                                         value: "bar",
                                                                                                                         enabled: false)],
                                                                     enableGPUFrameCaptureMode: .openGL,
+                                                                    enableAddressSanitizer: true,
+                                                                    enableASanStackUseAfterReturn: true,
+                                                                    enableThreadSanitizer: true,
+                                                                    enableUBSanitizer: true,
                                                                     launchAutomaticallySubstyle: "2",
                                                                     storeKitConfiguration: "Configuration.storekit"),
                                                     test: Scheme.Test(config: "Config",
                                                                       gatherCoverageData: true,
+                                                                      enableAddressSanitizer: true,
+                                                                      enableASanStackUseAfterReturn: true,
+                                                                      enableThreadSanitizer: true,
+                                                                      enableUBSanitizer: true,
                                                                       disableMainThreadChecker: true,
                                                                       randomExecutionOrder: false,
                                                                       parallelizable: false,

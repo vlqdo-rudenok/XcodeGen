@@ -15,29 +15,44 @@ public struct Settings: Equatable, JSONObjectConvertible, CustomStringConvertibl
         self.groups = groups
     }
 
-    public init(dictionary: [String: Any]) {
-        buildSettings = dictionary
-        configSettings = [:]
-        groups = []
-    }
-
-    public static let empty: Settings = Settings(dictionary: [:])
+    public static let empty: Settings = Settings(buildSettings: [:])
 
     public init(jsonDictionary: JSONDictionary) throws {
         if jsonDictionary["configs"] != nil || jsonDictionary["groups"] != nil || jsonDictionary["base"] != nil {
             groups = jsonDictionary.json(atKeyPath: "groups") ?? jsonDictionary.json(atKeyPath: "presets") ?? []
             let buildSettingsDictionary: JSONDictionary = jsonDictionary.json(atKeyPath: "base") ?? [:]
-            buildSettings = buildSettingsDictionary
-            configSettings = jsonDictionary.json(atKeyPath: "configs") ?? [:]
+            buildSettings = buildSettingsDictionary.mapValues { BuildSetting(any: $0) }
+
+            self.configSettings = try Self.extractValidConfigs(from: jsonDictionary)
         } else {
-            buildSettings = jsonDictionary
+            buildSettings = jsonDictionary.mapValues { BuildSetting(any: $0) }
             configSettings = [:]
             groups = []
         }
     }
 
+    /// Extracts and validates the `configs` mapping from the given JSON dictionary.
+    /// - Parameter jsonDictionary: The JSON dictionary to extract `configs` from.
+    /// - Returns: A dictionary mapping configuration names to `Settings` objects.
+    private static func extractValidConfigs(from jsonDictionary: JSONDictionary) throws -> [String: Settings] {
+        guard let configSettings = jsonDictionary["configs"] as? JSONDictionary else {
+            return [:]
+        }
+
+        let invalidConfigKeys = Set(
+            configSettings.filter { !($0.value is JSONDictionary) }
+                .map(\.key)
+        )
+
+        guard invalidConfigKeys.isEmpty else {
+            throw SpecParsingError.invalidConfigsMappingFormat(keys: invalidConfigKeys)
+        }
+
+        return try jsonDictionary.json(atKeyPath: "configs")
+    }
+
     public static func == (lhs: Settings, rhs: Settings) -> Bool {
-        NSDictionary(dictionary: lhs.buildSettings).isEqual(to: rhs.buildSettings) &&
+        lhs.buildSettings == rhs.buildSettings &&
             lhs.configSettings == rhs.configSettings &&
             lhs.groups == rhs.groups
     }
@@ -75,14 +90,14 @@ public struct Settings: Equatable, JSONObjectConvertible, CustomStringConvertibl
 
 extension Settings: ExpressibleByDictionaryLiteral {
 
-    public init(dictionaryLiteral elements: (String, Any)...) {
-        var dictionary: [String: Any] = [:]
-        elements.forEach { dictionary[$0.0] = $0.1 }
-        self.init(dictionary: dictionary)
+    public init(dictionaryLiteral elements: (String, BuildSetting)...) {
+        var buildSettings: BuildSettings = [:]
+        elements.forEach { buildSettings[$0.0] = $0.1 }
+        self.init(buildSettings: buildSettings)
     }
 }
 
-extension Dictionary where Key == String, Value: Any {
+extension Dictionary where Key == String {
 
     public func merged(_ dictionary: [Key: Value]) -> [Key: Value] {
         var mergedDictionary = self
@@ -95,10 +110,6 @@ extension Dictionary where Key == String, Value: Any {
             self[key] = value
         }
     }
-
-    public func equals(_ dictionary: BuildSettings) -> Bool {
-        NSDictionary(dictionary: self).isEqual(to: dictionary)
-    }
 }
 
 public func += (lhs: inout BuildSettings, rhs: BuildSettings?) {
@@ -106,15 +117,57 @@ public func += (lhs: inout BuildSettings, rhs: BuildSettings?) {
     lhs.merge(rhs)
 }
 
+extension BuildSetting {
+
+    public init(any value: Any) {
+        if let array = value as? [String] {
+            self = .array(array)
+        } else if let bool = value as? Bool {
+            self = .init(booleanLiteral: bool)
+        } else {
+            self = .string("\(value)")
+        }
+    }
+
+    public func toAny() -> Any {
+        switch self {
+        case let .string(value): return value
+        case let .array(value): return value
+        }
+    }
+}
+
+extension ProjectAttribute {
+
+    public init(any value: Any) {
+        if let array = value as? [String] {
+            self = .array(array)
+        } else if let object = value as? PBXObject {
+            self = .targetReference(object)
+        } else if let dictionary = value as? [String: [String: Any]] {
+            // e.g. `SystemCapabilities`, which is a dictionary of dictionaries.
+            // Without this case, such values fall through to the `.string("\(value)")`
+            // branch below, which interpolates the raw Swift `Dictionary`. Its
+            // `description` iterates in the process's random hash-seed order, so the
+            // same input can non-deterministically produce a different key order (and
+            // isn't a valid nested plist dictionary in the first place).
+            self = .attributeDictionary(dictionary.mapValues { $0.mapValues { ProjectAttribute(any: $0) } })
+        } else {
+            self = .string("\(value)")
+        }
+    }
+}
+
 extension Settings: JSONEncodable {
     public func toJSONValue() -> Any {
+        let anySettings = buildSettings.mapValues { $0.toAny() }
         if groups.count > 0 || configSettings.count > 0 {
             return [
-                "base": buildSettings,
+                "base": anySettings,
                 "groups": groups,
                 "configs": configSettings.mapValues { $0.toJSONValue() },
             ] as [String : Any]
         }
-        return buildSettings
+        return anySettings
     }
 }
